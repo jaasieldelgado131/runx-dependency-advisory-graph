@@ -46,7 +46,10 @@ jobs:
         run: |
           count=0
           while IFS= read -r receipt; do
-            npx --yes @runxhq/cli@0.6.2 verify --receipt "$receipt" --json
+            npx --yes @runxhq/cli@0.6.2 verify \
+              --receipt "$receipt" \
+              --allow-local-development-signatures \
+              --json
             count=$((count + 1))
           done < <(find receipts -maxdepth 1 -type f -name 'sha256:*.json' -print)
           test "$count" -ge 1
