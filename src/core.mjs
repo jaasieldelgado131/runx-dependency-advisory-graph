@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
+import { request } from "node:https";
 import path from "node:path";
 
 export const SCHEMA_VERSION = "runx.security.exact_cve_audit.v1";
-export const SCANNER_VERSION = "0.1.0";
+export const SCANNER_VERSION = "0.1.1";
 export const OSV_BASE_URL = "https://api.osv.dev/v1";
 
 export function sha256(value) {
@@ -55,36 +56,82 @@ export function validateTargetInputs(inputs) {
   };
 }
 
-export async function fetchJson(url, options = {}) {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      accept: "application/json",
-      "user-agent": "runx-exact-cve-audit/0.1.0",
-      ...options.headers,
-    },
-  });
-  const body = await response.text();
-  if (!response.ok) {
-    throw new Error(`${url} returned HTTP ${response.status}: ${body.slice(0, 300)}`);
+function requestText(url, options = {}, redirects = 0) {
+  if (redirects > 3) {
+    throw new Error(`too many redirects while requesting ${url}`);
   }
-  return JSON.parse(body);
+
+  return new Promise((resolve, reject) => {
+    const target = new URL(url);
+    if (target.protocol !== "https:") {
+      reject(new Error(`refusing non-HTTPS request to ${target}`));
+      return;
+    }
+
+    const req = request(
+      target,
+      {
+        method: options.method || "GET",
+        headers: {
+          accept: "application/json",
+          "user-agent": `runx-exact-cve-audit/${SCANNER_VERSION}`,
+          ...options.headers,
+        },
+      },
+      (response) => {
+        const status = response.statusCode || 0;
+        if (status >= 300 && status < 400 && response.headers.location) {
+          response.resume();
+          resolve(
+            requestText(
+              new URL(response.headers.location, target).toString(),
+              options,
+              redirects + 1,
+            ),
+          );
+          return;
+        }
+
+        const chunks = [];
+        response.on("data", (chunk) => chunks.push(chunk));
+        response.on("end", () => {
+          resolve({
+            status,
+            ok: status >= 200 && status < 300,
+            body: Buffer.concat(chunks).toString("utf8"),
+          });
+        });
+      },
+    );
+    req.setTimeout(30_000, () => {
+      req.destroy(new Error(`request timed out for ${target}`));
+    });
+    req.on("error", reject);
+    if (options.body) {
+      req.write(options.body);
+    }
+    req.end();
+  });
+}
+
+export async function fetchJson(url, options = {}) {
+  const response = await requestText(url, options);
+  if (!response.ok) {
+    throw new Error(
+      `${url} returned HTTP ${response.status}: ${response.body.slice(0, 300)}`,
+    );
+  }
+  return JSON.parse(response.body);
 }
 
 export async function fetchLockfile(url) {
-  const response = await fetch(url, {
-    headers: {
-      accept: "application/json",
-      "user-agent": "runx-exact-cve-audit/0.1.0",
-    },
-  });
-  const text = await response.text();
+  const response = await requestText(url);
   if (!response.ok) {
     throw new Error(
-      `lockfile returned HTTP ${response.status}: ${text.slice(0, 300)}`,
+      `lockfile returned HTTP ${response.status}: ${response.body.slice(0, 300)}`,
     );
   }
-  return { text, lockfile: JSON.parse(text) };
+  return { text: response.body, lockfile: JSON.parse(response.body) };
 }
 
 export function inventoryFromPackageLock(lockfile, scope) {
