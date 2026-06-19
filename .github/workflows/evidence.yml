@@ -60,6 +60,16 @@ jobs:
           node -e 'const d=require("./artifacts/delivery.json"); console.log(JSON.stringify({target:d.target, result:d.result, verification:d.verification, delivery_digest:d.delivery_digest}, null, 2))' \
             | tee evidence-summary.json
 
+      - name: Prepare portable receipt filenames
+        run: |
+          mkdir -p portable-receipts
+          : > portable-receipts/index.txt
+          for receipt in receipts/sha256:*.json; do
+            portable="portable-receipts/$(basename "$receipt" | tr ':' '_')"
+            cp "$receipt" "$portable"
+            printf '%s -> %s\n' "$receipt" "$portable" >> portable-receipts/index.txt
+          done
+
       - uses: actions/upload-artifact@v4
         with:
           name: exact-cve-audit-evidence
@@ -67,6 +77,6 @@ jobs:
           retention-days: 90
           path: |
             artifacts/
-            receipts/
+            portable-receipts/
             runx-output.json
             evidence-summary.json
