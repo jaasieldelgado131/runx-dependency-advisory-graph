@@ -1,0 +1,107 @@
+import {
+  SCANNER_VERSION,
+  SCHEMA_VERSION,
+  buildFindings,
+  fetchLockfile,
+  inventoryFromPackageLock,
+  loadAdvisories,
+  parseInputs,
+  queryOsvBatch,
+  renderMarkdown,
+  sha256,
+  validateTargetInputs,
+  writeArtifact,
+} from "../src/core.mjs";
+
+const inputs = validateTargetInputs(parseInputs());
+const { text: lockfileText, lockfile } = await fetchLockfile(inputs.lockfileUrl);
+const inventory = inventoryFromPackageLock(
+  lockfile,
+  inputs.dependencyScope,
+);
+const { queries, results } = await queryOsvBatch(inventory);
+const advisoryIds = results.flatMap((result) =>
+  (result.vulns || []).map(({ id }) => id),
+);
+const advisories = await loadAdvisories(advisoryIds);
+const findings = buildFindings(inventory, results, advisories);
+const generatedAt = new Date().toISOString();
+
+const auditResult = {
+  schema: SCHEMA_VERSION,
+  scanner_version: SCANNER_VERSION,
+  generated_at: generatedAt,
+  target: {
+    name: inputs.targetName,
+    repo: inputs.targetRepo,
+    commit: inputs.targetCommit,
+    lockfile_url: inputs.lockfileUrl,
+    lockfile_sha256: sha256(lockfileText),
+    lockfile_version: lockfile.lockfileVersion,
+  },
+  dependency_scope: inputs.dependencyScope,
+  inventory,
+  findings,
+  result: {
+    exact_dependencies_queried: inventory.length,
+    affected_dependencies: new Set(
+      findings.map(({ dependency, exact_version }) => `${dependency}@${exact_version}`),
+    ).size,
+    advisory_findings: findings.length,
+    source: "OSV",
+    source_url: "https://api.osv.dev",
+  },
+};
+
+const reportMarkdown = renderMarkdown(auditResult);
+const evidence = {
+  schema: "runx.security.exact_cve_evidence.v1",
+  generated_at: generatedAt,
+  target: auditResult.target,
+  dependency_scope: auditResult.dependency_scope,
+  method: {
+    inventory_source: "package-lock.json packages map",
+    query_contract: "{ package: { ecosystem: npm, name }, version: exact_version }",
+    advisory_source: "https://api.osv.dev/v1",
+    withdrawn_advisories_excluded: true,
+    false_positive_control:
+      "Each finding must be present in OSV's response for the exact package/version tuple and is replayed by an independent verification step.",
+  },
+  queries: queries.map((query, index) => ({
+    query,
+    returned_advisory_ids: (results[index]?.vulns || [])
+      .map(({ id }) => id)
+      .filter((id) => advisories.has(id))
+      .sort(),
+  })),
+  findings: findings.map((finding) => ({
+    dependency: finding.dependency,
+    exact_version: finding.exact_version,
+    advisory_id: finding.advisory_id,
+    advisory_url: finding.advisory_url,
+    exact_query: finding.exact_query,
+  })),
+};
+
+const reportArtifact = await writeArtifact("report.md", reportMarkdown, {
+  json: false,
+});
+const evidenceArtifact = await writeArtifact("evidence.json", evidence);
+const auditArtifact = await writeArtifact("audit-result.json", auditResult);
+
+process.stdout.write(
+  JSON.stringify({
+    audit_result: auditResult,
+    report: {
+      schema: "runx.security.exact_cve_report.v1",
+      artifact: reportArtifact,
+      finding_count: findings.length,
+      markdown_sha256: reportArtifact.sha256,
+    },
+    evidence: {
+      ...evidence,
+      artifact: evidenceArtifact,
+      audit_artifact: auditArtifact,
+    },
+  }),
+);

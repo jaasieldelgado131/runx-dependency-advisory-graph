@@ -1,0 +1,66 @@
+name: Reproduce sealed CVE audit
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUNX_RECEIPT_SIGN_KID: runx-public-demo-key
+      RUNX_RECEIPT_SIGN_ED25519_SEED_BASE64: QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=
+      RUNX_RECEIPT_SIGN_ISSUER_TYPE: hosted
+      RUNX_RECEIPT_DIR: ${{ github.workspace }}/receipts
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Execute governed audit
+        run: |
+          npx --yes @runxhq/cli@0.6.2 skill "$GITHUB_WORKSPACE" \
+            --runner audit \
+            --input "target_name=OWASP NodeGoat" \
+            --input "target_repo=https://github.com/OWASP/NodeGoat" \
+            --input "target_commit=c5cb68a7084e4ae7dcc60e6a98768720a81841e8" \
+            --input "lockfile_url=https://raw.githubusercontent.com/OWASP/NodeGoat/c5cb68a7084e4ae7dcc60e6a98768720a81841e8/package-lock.json" \
+            --input "dependency_scope=direct-production" \
+            --json | tee runx-output.json
+
+      - name: Verify sealed receipts
+        run: |
+          count=0
+          while IFS= read -r receipt; do
+            npx --yes @runxhq/cli@0.6.2 verify --receipt "$receipt" --json
+            count=$((count + 1))
+          done < <(find receipts -maxdepth 1 -type f -name 'sha256:*.json' -print)
+          test "$count" -ge 1
+
+      - name: Summarize evidence
+        run: |
+          node -e 'const d=require("./artifacts/delivery.json"); console.log(JSON.stringify({target:d.target, result:d.result, verification:d.verification, delivery_digest:d.delivery_digest}, null, 2))' \
+            | tee evidence-summary.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exact-cve-audit-evidence
+          if-no-files-found: error
+          retention-days: 90
+          path: |
+            artifacts/
+            receipts/
+            runx-output.json
+            evidence-summary.json
