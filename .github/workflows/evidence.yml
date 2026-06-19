@@ -24,13 +24,14 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20
 
       - name: Run unit tests
         run: npm test
 
       - name: Execute governed audit
         run: |
+          set -o pipefail
           npx --yes @runxhq/cli@0.6.2 skill "$GITHUB_WORKSPACE" \
             --runner audit \
             --input "target_name=OWASP NodeGoat" \
@@ -38,6 +39,7 @@ jobs:
             --input "target_commit=c5cb68a7084e4ae7dcc60e6a98768720a81841e8" \
             --input "lockfile_url=https://raw.githubusercontent.com/OWASP/NodeGoat/c5cb68a7084e4ae7dcc60e6a98768720a81841e8/package-lock.json" \
             --input "dependency_scope=direct-production" \
+            --receipt-dir "$RUNX_RECEIPT_DIR" \
             --json | tee runx-output.json
 
       - name: Verify sealed receipts
