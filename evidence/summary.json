@@ -1,0 +1,25 @@
+{
+  "target": {
+    "commit": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+    "lockfile_sha256": "b9ed49893a9d3bcf6fe567cd38fe8168850591e0018f19d3bb0d1f80a4c2eecc",
+    "lockfile_url": "https://raw.githubusercontent.com/OWASP/NodeGoat/c5cb68a7084e4ae7dcc60e6a98768720a81841e8/package-lock.json",
+    "lockfile_version": 2,
+    "name": "OWASP NodeGoat",
+    "repo": "https://github.com/OWASP/NodeGoat"
+  },
+  "result": {
+    "advisory_findings": 13,
+    "affected_dependencies": 6,
+    "exact_dependencies_queried": 16,
+    "source": "OSV",
+    "source_url": "https://api.osv.dev"
+  },
+  "verification": {
+    "verified": true,
+    "false_hits": 0,
+    "missing_hits": 0,
+    "exact_dependencies_replayed": 16,
+    "verified_findings": 13
+  },
+  "delivery_digest": "sha256:c5ccaf5b69b6b6fc31b7b78f79b5ba551b5141c1fc790565fd72cc84dce81d8a"
+}

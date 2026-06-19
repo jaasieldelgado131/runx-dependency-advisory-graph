@@ -1,4 +1,5 @@
 artifacts/
 .runx/
 .runx-receipts/
+evidence-run/
 node_modules/

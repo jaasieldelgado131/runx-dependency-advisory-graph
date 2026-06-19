@@ -47,3 +47,6 @@ The `Reproduce sealed CVE audit` GitHub Actions workflow runs the unit tests,
 executes the governed graph on Linux, verifies every emitted runx receipt, and
 publishes the report, JSON evidence, delivery packet, and receipts as one
 workflow artifact. The workflow pins `@runxhq/cli` to `0.6.2`.
+
+The successful real-run outputs and independently verifiable receipts are also
+checked into [`evidence/`](evidence/README.md) for anonymous public review.
