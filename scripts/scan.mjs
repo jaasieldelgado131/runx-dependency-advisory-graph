@@ -57,6 +57,42 @@ const reportMarkdown = renderMarkdown(auditResult);
 const evidence = {
   schema: "runx.security.exact_cve_evidence.v1",
   generated_at: generatedAt,
+  summary:
+    `Audited ${inventory.length} exact direct production dependency versions from the pinned OWASP NodeGoat lockfile and found ${findings.length} current OSV advisories with exact-version evidence.`,
+  observations: [
+    {
+      id: "immutable_target",
+      statement: "The audit input is pinned to an immutable repository commit and lockfile digest.",
+      evidence: {
+        commit: auditResult.target.commit,
+        lockfile_sha256: auditResult.target.lockfile_sha256,
+      },
+    },
+    {
+      id: "exact_dependency_inventory",
+      statement: "Every OSV query uses an exact installed direct production dependency version.",
+      evidence: {
+        dependency_scope: auditResult.dependency_scope,
+        exact_dependencies_queried: inventory.length,
+      },
+    },
+    {
+      id: "real_advisory_source",
+      statement: "Advisories are loaded from OSV and withdrawn advisories are excluded.",
+      evidence: {
+        source: auditResult.result.source,
+        source_url: auditResult.result.source_url,
+      },
+    },
+    {
+      id: "traceable_findings",
+      statement: "Every finding records the dependency, exact version, advisory id, advisory URL, and exact query.",
+      evidence: {
+        advisory_findings: findings.length,
+        affected_dependencies: auditResult.result.affected_dependencies,
+      },
+    },
+  ],
   target: auditResult.target,
   dependency_scope: auditResult.dependency_scope,
   method: {
