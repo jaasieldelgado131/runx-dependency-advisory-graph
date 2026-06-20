@@ -24,8 +24,10 @@ const advisoryIds = results.flatMap((result) =>
   (result.vulns || []).map(({ id }) => id),
 );
 const advisories = await loadAdvisories(advisoryIds);
-const findings = buildFindings(inventory, results, advisories);
 const generatedAt = new Date().toISOString();
+const findings = buildFindings(inventory, results, advisories, {
+  retrievedAt: generatedAt,
+});
 
 const auditResult = {
   schema: SCHEMA_VERSION,
@@ -55,10 +57,10 @@ const auditResult = {
 
 const reportMarkdown = renderMarkdown(auditResult);
 const evidence = {
-  schema: "runx.security.exact_cve_evidence.v1",
+  schema: "runx.security.dependency_advisory_evidence.v1",
   generated_at: generatedAt,
   summary:
-    `Audited ${inventory.length} exact direct production dependency versions from the pinned OWASP NodeGoat lockfile and found ${findings.length} current OSV advisories with exact-version evidence.`,
+    `Audited ${inventory.length} exact dependency versions from the pinned ${inputs.targetName} lockfile and found ${findings.length} current OSV advisories with exact-version evidence.`,
   observations: [
     {
       id: "immutable_target",
@@ -86,10 +88,19 @@ const evidence = {
     },
     {
       id: "traceable_findings",
-      statement: "Every finding records the dependency, exact version, advisory id, advisory URL, and exact query.",
+      statement: "Every finding records the dependency, exact version, advisory id, evidence URL, severity, fix version when known, confidence, source, and retrieval time.",
       evidence: {
         advisory_findings: findings.length,
         affected_dependencies: auditResult.result.affected_dependencies,
+      },
+    },
+    {
+      id: "false_positive_guard",
+      statement: "An independent graph step replays every exact-version query and rejects any false or missing finding.",
+      evidence: {
+        guard_step: "verify",
+        expected_false_hits: 0,
+        expected_missing_hits: 0,
       },
     },
   ],
@@ -99,6 +110,7 @@ const evidence = {
     inventory_source: "package-lock.json packages map",
     query_contract: "{ package: { ecosystem: npm, name }, version: exact_version }",
     advisory_source: "https://api.osv.dev/v1",
+    retrieved_at: generatedAt,
     withdrawn_advisories_excluded: true,
     false_positive_control:
       "Each finding must be present in OSV's response for the exact package/version tuple and is replayed by an independent verification step.",
@@ -115,6 +127,12 @@ const evidence = {
     exact_version: finding.exact_version,
     advisory_id: finding.advisory_id,
     advisory_url: finding.advisory_url,
+    advisory_source: finding.advisory_source,
+    retrieved_at: finding.retrieved_at,
+    severity: finding.severity,
+    severity_label: finding.severity_label,
+    fix_version: finding.fix_version,
+    confidence: finding.confidence,
     exact_query: finding.exact_query,
   })),
 };
@@ -129,7 +147,7 @@ process.stdout.write(
   JSON.stringify({
     audit_result: auditResult,
     report: {
-      schema: "runx.security.exact_cve_report.v1",
+      schema: "runx.security.dependency_advisory_report.v1",
       artifact: reportArtifact,
       finding_count: findings.length,
       markdown_sha256: reportArtifact.sha256,

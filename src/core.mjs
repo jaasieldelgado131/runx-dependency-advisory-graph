@@ -3,8 +3,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { request } from "node:https";
 import path from "node:path";
 
-export const SCHEMA_VERSION = "runx.security.exact_cve_audit.v1";
-export const SCANNER_VERSION = "0.1.1";
+export const SCHEMA_VERSION = "runx.security.dependency_advisory_graph.v1";
+export const SCANNER_VERSION = "0.1.0";
 export const OSV_BASE_URL = "https://api.osv.dev/v1";
 
 export function sha256(value) {
@@ -223,7 +223,35 @@ export async function loadAdvisories(ids) {
   return advisories;
 }
 
-export function buildFindings(inventory, batchResults, advisories) {
+export function fixedVersionsFor(advisory, dependencyName) {
+  const versions = new Set();
+  for (const affected of advisory.affected || []) {
+    if (
+      affected.package?.ecosystem !== "npm" ||
+      affected.package?.name !== dependencyName
+    ) {
+      continue;
+    }
+    for (const range of affected.ranges || []) {
+      if (range.type !== "SEMVER") continue;
+      for (const event of range.events || []) {
+        if (typeof event.fixed === "string" && event.fixed.trim()) {
+          versions.add(event.fixed.trim());
+        }
+      }
+    }
+  }
+  return [...versions].sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true }),
+  );
+}
+
+export function buildFindings(
+  inventory,
+  batchResults,
+  advisories,
+  { retrievedAt = new Date().toISOString() } = {},
+) {
   const findings = [];
   inventory.forEach((dependency, index) => {
     const ids = (batchResults[index]?.vulns || [])
@@ -232,6 +260,11 @@ export function buildFindings(inventory, batchResults, advisories) {
       .sort();
     for (const id of ids) {
       const advisory = advisories.get(id);
+      const fixVersions = fixedVersionsFor(advisory, dependency.name);
+      const severityLabel =
+        advisory.database_specific?.severity ||
+        advisory.ecosystem_specific?.severity ||
+        "unknown";
       findings.push({
         dependency: dependency.name,
         exact_version: dependency.version,
@@ -244,6 +277,12 @@ export function buildFindings(inventory, batchResults, advisories) {
         modified: advisory.modified || null,
         published: advisory.published || null,
         severity: advisory.severity || [],
+        severity_label: String(severityLabel).toLowerCase(),
+        fix_version: fixVersions[0] || null,
+        fix_versions: fixVersions,
+        confidence: 1,
+        advisory_source: "OSV",
+        retrieved_at: retrievedAt,
         advisory_url: `https://osv.dev/vulnerability/${id}`,
         references: (advisory.references || [])
           .map(({ type, url }) => ({ type, url }))
@@ -287,11 +326,15 @@ export function renderMarkdown(audit) {
   } else {
     for (const finding of audit.findings) {
       lines.push(
-        `### ${finding.dependency}@${finding.exact_version} — ${finding.advisory_id}`,
+        `### ${finding.dependency}@${finding.exact_version} - ${finding.advisory_id}`,
         "",
         `- Advisory: ${finding.advisory_url}`,
         `- Aliases: ${finding.aliases.length ? finding.aliases.join(", ") : "none"}`,
         `- Installed path: \`${finding.dependency_path}\``,
+        `- Severity: ${finding.severity_label}`,
+        `- Fix version: ${finding.fix_version || "not supplied by OSV"}`,
+        `- Confidence: ${finding.confidence}`,
+        `- Retrieved from OSV: ${finding.retrieved_at}`,
         `- Summary: ${finding.summary || "No summary supplied by OSV."}`,
         "",
       );

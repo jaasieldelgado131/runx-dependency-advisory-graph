@@ -2,10 +2,42 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildFindings,
+  fixedVersionsFor,
   inventoryFromPackageLock,
   renderMarkdown,
   validateTargetInputs,
 } from "../src/core.mjs";
+
+test("advisory findings include fix, severity, confidence, and provenance", () => {
+  const advisory = {
+    id: "GHSA-aaaa-bbbb-cccc",
+    database_specific: { severity: "HIGH" },
+    affected: [
+      {
+        package: { ecosystem: "npm", name: "alpha" },
+        ranges: [
+          {
+            type: "SEMVER",
+            events: [{ introduced: "0" }, { fixed: "1.2.4" }],
+          },
+        ],
+      },
+    ],
+  };
+  assert.deepEqual(fixedVersionsFor(advisory, "alpha"), ["1.2.4"]);
+
+  const findings = buildFindings(
+    [{ name: "alpha", version: "1.2.3", path: "node_modules/alpha" }],
+    [{ vulns: [{ id: advisory.id }] }],
+    new Map([[advisory.id, advisory]]),
+    { retrievedAt: "2026-06-20T00:00:00.000Z" },
+  );
+  assert.equal(findings[0].fix_version, "1.2.4");
+  assert.equal(findings[0].severity_label, "high");
+  assert.equal(findings[0].confidence, 1);
+  assert.equal(findings[0].advisory_source, "OSV");
+});
 
 test("inventory uses exact direct production versions", () => {
   const inventory = inventoryFromPackageLock(

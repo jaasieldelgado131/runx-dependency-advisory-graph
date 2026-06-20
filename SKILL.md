@@ -1,6 +1,6 @@
 ---
-name: exact-cve-audit
-description: Audit exact npm dependency versions against OSV and emit a reproducible evidence packet with zero unverified findings.
+name: dependency-advisory-graph
+description: Match exact npm dependency versions to OSV advisories and emit a fix-prioritized, independently verified graph evidence packet.
 source:
   type: cli-tool
   command: node
@@ -44,7 +44,7 @@ runx:
       evidence: evidence
 ---
 
-# Exact CVE Audit
+# Dependency Advisory Graph
 
 Audit an immutable npm `package-lock.json` against the public OSV API. Every
 finding is tied to an exact installed package version and an advisory returned
@@ -62,6 +62,10 @@ by OSV for that exact package/version query.
 - Stop conditions: fail closed when the lockfile is mutable, malformed, lacks
   exact installed versions, OSV is unavailable, or verification finds an
   omitted or unsupported advisory.
+
+Each finding includes package, installed version, advisory ID, evidence URL,
+severity, fix version when OSV supplies one, confidence, advisory source, and
+retrieval timestamp. A second graph step independently replays every query.
 
 ## Governance
 

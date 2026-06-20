@@ -1,4 +1,4 @@
-name: Reproduce sealed CVE audit
+name: Reproduce dependency advisory graph
 
 on:
   push:
@@ -34,7 +34,7 @@ jobs:
       - name: Execute governed audit
         run: |
           set -o pipefail
-          npx --yes @runxhq/cli@0.6.2 skill "$GITHUB_WORKSPACE" \
+          npx --yes @runxhq/cli@0.6.6 skill "$GITHUB_WORKSPACE" \
             --runner audit \
             --input "target_name=OWASP NodeGoat" \
             --input "target_repo=https://github.com/OWASP/NodeGoat" \
@@ -48,7 +48,7 @@ jobs:
         run: |
           count=0
           while IFS= read -r receipt; do
-            npx --yes @runxhq/cli@0.6.2 verify \
+            npx --yes @runxhq/cli@0.6.6 verify \
               --receipt "$receipt" \
               --json
             count=$((count + 1))
@@ -72,7 +72,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: exact-cve-audit-evidence
+          name: dependency-advisory-graph-evidence
           if-no-files-found: error
           retention-days: 90
           path: |

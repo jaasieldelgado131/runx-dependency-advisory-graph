@@ -1,6 +1,6 @@
-# runx exact CVE audit
+# runx dependency advisory graph
 
-A governed runx skill that audits exact npm dependency versions against OSV.
+A governed runx graph skill that audits exact npm dependency versions against OSV.
 It emits a report, machine-readable evidence, an independent replay
 verification, and a delivery packet.
 
@@ -46,7 +46,7 @@ lockfile URL and `api.osv.dev`.
 The `Reproduce sealed CVE audit` GitHub Actions workflow runs the unit tests,
 executes the governed graph on Linux, verifies every emitted runx receipt, and
 publishes the report, JSON evidence, delivery packet, and receipts as one
-workflow artifact. The workflow pins `@runxhq/cli` to `0.6.2`.
+workflow artifact. The workflow pins `@runxhq/cli` to `0.6.6`.
 
 The successful real-run outputs and independently verifiable receipts are also
 checked into [`evidence/`](evidence/README.md) for anonymous public review.

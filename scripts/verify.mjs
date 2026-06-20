@@ -85,7 +85,7 @@ for (const finding of audit.findings) {
 }
 
 const verification = {
-  schema: "runx.security.exact_cve_verification.v1",
+  schema: "runx.security.dependency_advisory_verification.v1",
   verified_at: new Date().toISOString(),
   target: audit.target,
   dependency_scope: audit.dependency_scope,

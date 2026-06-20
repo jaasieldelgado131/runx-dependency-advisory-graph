@@ -1,5 +1,5 @@
-skill: exact-cve-audit
-version: "0.1.1"
+skill: dependency-advisory-graph
+version: "0.1.0"
 
 catalog:
   kind: graph
@@ -51,7 +51,7 @@ runners:
         default: direct-production
         description: direct-production or all-installed.
     graph:
-      name: exact-cve-audit
+      name: dependency-advisory-graph
       steps:
         - id: scan
           label: query exact dependency versions
@@ -82,9 +82,9 @@ runners:
               report: report
               evidence: evidence
             packets:
-              audit_result: runx.security.exact_cve_audit.v1
-              report: runx.security.exact_cve_report.v1
-              evidence: runx.security.exact_cve_evidence.v1
+              audit_result: runx.security.dependency_advisory_graph.v1
+              report: runx.security.dependency_advisory_report.v1
+              evidence: runx.security.dependency_advisory_evidence.v1
 
         - id: verify
           label: independently replay every exact-version query
@@ -113,7 +113,7 @@ runners:
             named_emits:
               verification: verification
             packets:
-              verification: runx.security.exact_cve_verification.v1
+              verification: runx.security.dependency_advisory_verification.v1
 
         - id: finalize
           label: seal the recomputable delivery packet
@@ -142,7 +142,7 @@ runners:
             named_emits:
               delivery: delivery
             packets:
-              delivery: runx.security.exact_cve_delivery.v1
+              delivery: runx.security.dependency_advisory_delivery.v1
       policy:
         guards:
           - step: finalize

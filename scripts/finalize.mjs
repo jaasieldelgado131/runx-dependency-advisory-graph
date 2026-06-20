@@ -17,7 +17,7 @@ if (verification.verified !== true) {
 }
 
 const delivery = {
-  schema: "runx.security.exact_cve_delivery.v1",
+  schema: "runx.security.dependency_advisory_delivery.v1",
   created_at: new Date().toISOString(),
   target: audit.target,
   dependency_scope: audit.dependency_scope,
