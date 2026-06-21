@@ -31,6 +31,12 @@ jobs:
       - name: Run unit tests
         run: npm test
 
+      - name: Run vulnerable and clean harness cases
+        run: |
+          npx --yes @runxhq/cli@0.6.6 harness "$GITHUB_WORKSPACE" \
+            --receipt-dir "$GITHUB_WORKSPACE/harness-receipts" \
+            --json | tee harness-output.json
+
       - name: Execute governed audit
         run: |
           set -o pipefail
@@ -79,4 +85,5 @@ jobs:
             artifacts/
             portable-receipts/
             runx-output.json
+            harness-output.json
             evidence-summary.json

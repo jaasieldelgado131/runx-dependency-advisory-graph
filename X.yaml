@@ -24,6 +24,21 @@ harness:
           state: sealed
           disposition: closed
 
+    - name: clean-empty-manifest
+      runner: audit
+      inputs:
+        target_name: Clean empty manifest fixture
+        target_repo: https://github.com/jaasieldelgado131/runx-dependency-advisory-graph
+        target_commit: c098dfbe423c47b7da7a33f0bed3e805d5acf1b2
+        lockfile_url: https://raw.githubusercontent.com/jaasieldelgado131/runx-dependency-advisory-graph/c098dfbe423c47b7da7a33f0bed3e805d5acf1b2/fixtures/clean-package-lock.json
+        dependency_scope: direct-production
+      expect:
+        status: sealed
+        receipt:
+          schema: runx.receipt.v1
+          state: sealed
+          disposition: closed
+
 runners:
   audit:
     default: true
